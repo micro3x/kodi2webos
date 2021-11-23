@@ -99,7 +99,7 @@ function LoadingPanel({ onFirstPanel, onSettingsPanel }) {
 					logger("verificando conexao com o servidor...")
 					const noConnection = await api.noConnection();
 
-					if (noConnection) {
+					if (false) {
 						logger("não foi possível estabelecer conexão com o servidor. verifique configurações.");
 						setIsLoading(false);
 						onSettingsPanel();

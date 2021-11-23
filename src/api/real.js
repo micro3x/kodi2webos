@@ -30,11 +30,14 @@ function noConfig() {
   return (server.ip === null || server.port === null || server.protocol === null);
 }
 
+import conn from '../services/connectionService';
+conn.init();
+
 const noConnection = async () => {
   let message = jsonrpc.ping();
   try {
-    const response = await axios.post(endpoint, message);
-    logger(response.data.result);
+    const response = await conn.instance.sendMessage(message);
+    logger(response.result);
     return false;
   } catch (error) {
     logger(error);
@@ -45,8 +48,8 @@ const noConnection = async () => {
 const getMoviesInProgress = async (start, end) => {
   let message = videoLibrary.getMoviesInProgress(start, end);
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.movies;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.movies;
   } catch (error) {
     return error;
   }
@@ -55,8 +58,8 @@ const getMoviesInProgress = async (start, end) => {
 const getMoviesLastAdded = async (start, end) => {
   let message = videoLibrary.getMoviesLastAdded(start, end);
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.movies;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.movies;
   } catch (error) {
     return error;
   }
@@ -65,8 +68,8 @@ const getMoviesLastAdded = async (start, end) => {
 const getMoviesLastViewed = async (start, end) => {
   let message = videoLibrary.getMoviesLastViewed(start, end);
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.movies;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.movies;
   } catch (error) {
     return error;
   }
@@ -75,8 +78,8 @@ const getMoviesLastViewed = async (start, end) => {
 const getMoviesByGenre = async (start, end, genre) => {
   let message = videoLibrary.getMoviesByGenre(start, end, genre);
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.movies;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.movies;
   } catch (error) {
     return error;
   }
@@ -85,8 +88,8 @@ const getMoviesByGenre = async (start, end, genre) => {
 const getGenres = async () => {
   let message = videoLibrary.getGenres();
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.genres;
+    const response = await conn.instance.sendMessage(message);
+    return response.result.genres;
   } catch (error) {
     return error;
   }
@@ -95,8 +98,8 @@ const getGenres = async () => {
 const getMovieSets = async () => {
   let message = videoLibrary.getMovieSets();
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.sets;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.sets;
   } catch (error) {
     return error;
   }
@@ -105,8 +108,8 @@ const getMovieSets = async () => {
 const getMovieSetDetails = async (setid) => {
   let message = videoLibrary.getMovieSetDetails(setid);
   try {
-    const response = await axios.post(endpoint, message);
-    return response.data.result.setdetails.movies;
+    const response = await conn.instance.sendMessage( message);
+    return response.result.setdetails.movies;
   } catch (error) {
     return error;
   }
@@ -115,8 +118,8 @@ const getMovieSetDetails = async (setid) => {
 const prepareDownload = async (_path) => {
   let message = files.prepareDownload(_path);
   try {
-    const response = await axios.post(endpoint, message);
-    const path = response.data.result.details.path;
+    const response = await conn.instance.sendMessage( message);
+    const path = response.result.details.path;
     return `${URL_BASE}/${path}`;
   } catch (error) {
     return error;
