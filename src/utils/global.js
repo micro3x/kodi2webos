@@ -4,7 +4,7 @@ export const LOCAL_STORAGE_PREFIX_ASYNC = "kodi2webos:async:";
 export const LOCAL_STORAGE_PREFIX_SERVER = "kodi2webos:server:";
 export const LOCAL_STORAGE_PREFIX_DATA = "kodi2webos:data:";
 
-export const PROTOCOLS = ["HTTP","HTTPS"];
+export const PROTOCOLS = ["HTTP","HTTPS","WS"];
 export const PROTOCOL_HTTP = "HTTP";
 export const PROTOCOL_HTTPS = "HTTPS";
 

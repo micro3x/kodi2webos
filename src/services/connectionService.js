@@ -18,12 +18,14 @@ class HttpConnectionJsonRpc {
     this.#user = username;
     this.#pass = password;
 
-    this.#agent = axios.create();
+    this.#agent = axios.create({ withCredentials: true });
 
     this.#agent.interceptors.request.use(config => {
       // Add Auth header for all http requests if we have login info
       if (this.#user || this.#pass) {
         config.headers.Authorization = `Basic ${window.btoa(`${this.#user}:${this.#pass}`)}`;
+        config.headers['Content-Type'] = 'application/json';
+        // config.headers['Origin'] = this.endpoint;
       }
       return config;
     })
@@ -39,7 +41,7 @@ class HttpConnectionJsonRpc {
   }
 
   sendMessage = (message, urlParams = '') => {
-    return this.#agent.post(this.endpoint + urlParams, message)
+    return this.#agent.post(this.endpoint + urlParams, message, { withCredentials: true, headers: { Authorization: `Basic ${window.btoa(`${this.#user}:${this.#pass}`)}` } })
       .then(res => res.data);
   }
 
@@ -62,30 +64,18 @@ class SocketConnectionJsonRpc {
   #user
   #pass
   #isOpen
-  #responseListeners = new Map();
+  #requestQueue = new Map();
   #nextId = 1;
+  #currentRequest = null;
 
   constructor({ protocol, host, port, username, password }) {
     this.#path = '/jsonrpc';
     this.#host = host; // TODO: Validate host pattern and assign default if needed
     this.#port = port; // TODO: Validate port pattern and assign default if needed
     this.#protocol = 'ws';
+    this._initSocket();
 
-    if ("WebSocket" in window) {
-      console.log("asd")
-    }
-
-    this.#agent = new window.WebSocket(this.endpoint);
-    this.#agent.readyState
-    this.#agent.onopen = ev => {
-      this.#isOpen = true;
-    }
-    this.#agent.onclose = ev => {
-      this.#isOpen = false;
-    }
-
-    this.#agent.onmessage = this.handleResponse;
-
+    this.handleDisconnect = this.handleDisconnect.bind(this);
   }
 
   get endpoint() {
@@ -99,6 +89,18 @@ class SocketConnectionJsonRpc {
   get nextId() {
     this.#nextId += 1;
     return this.#nextId;
+  }
+
+  _initSocket() {
+    this.#agent = new window.WebSocket(this.endpoint);
+    this.#agent.onopen = ev => {
+      this.#isOpen = true;
+    }
+    this.#agent.onclose = this.handleDisconnect;
+
+    this.#agent.onmessage = this.handleResponse;
+
+    this.#agent.onerror = this.handleDisconnect;
   }
 
   _parseMessages(messageString) {
@@ -133,17 +135,33 @@ class SocketConnectionJsonRpc {
   handleResponse = (ev) => {
     this._parseMessages(ev.data).forEach(msg => {
       const res = JSON.parse(msg);
-      const callback = this.#responseListeners.get(res.id);
+      const callback = this.#requestQueue.get(res.id);
       if (typeof callback.success == 'function') {
         callback.success(res);
+        this.#requestQueue.delete(res.id);
+        this.#currentRequest = null;
+        this.sendNext();
       }
     })
+  }
+
+  handleDisconnect = (ev) => {
+    this._initSocket();
+    let waitConnection = setInterval(() => {
+      if (this.#agent.readyState == 1) {
+        this.#requestQueue.forEach(request => {
+          this.#agent.send(request.payload)
+        })
+        clearInterval(waitConnection);
+      }
+    }, 100)
   }
 
   sendMessage = (message, urlParams = '') => {
     const requestId = this.nextId;
     return new Promise((resolve, reject) => {
-      const callbacks = {
+      const request = {
+        payload: JSON.stringify({ ...message, id: "t" + requestId }),
         success: (res) => {
           resolve(res);
         },
@@ -152,9 +170,18 @@ class SocketConnectionJsonRpc {
         }
       }
 
-      this.#responseListeners.set("t" +requestId, callbacks)
-      this.#agent.send(JSON.stringify({ ...message, id: "t" + requestId }))
+      this.#requestQueue.set("t" + requestId, request)
+      this.sendNext();
     })
+  }
+
+  sendNext = () => {
+    let request = this.#currentRequest;
+    let first = this.#requestQueue.keys().next().value;
+    if (!request && first) {
+      this.#currentRequest = this.#requestQueue.get(first);
+      this.#agent.send(this.#currentRequest.payload)
+    }
   }
 
   close = () => {
@@ -170,10 +197,9 @@ class SocketConnectionJsonRpc {
 
 
 const defaultConfig = {
-  type: 'webSocket',
   host: '192.168.9.20',
   port: '9090',
-  protocol: 'ws',
+  protocol: 'WS',
 }
 
 class ConnectionService {
@@ -181,11 +207,12 @@ class ConnectionService {
   #conn
   init = async (config = defaultConfig) => {
     this.#config = config;
-    switch (config.type) {
-      case 'webSocket':
+    switch ((config.protocol || "").toLocaleUpperCase()) {
+      case 'WS':
         this.#conn = new SocketConnectionJsonRpc(this.#config);
         break;
-      case 'http':
+      case 'HTTP':
+      case 'HTTPS':
         this.#conn = new HttpConnectionJsonRpc(this.#config);
         break;
       default:
